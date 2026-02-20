@@ -1,20 +1,26 @@
-# This script contains a function that ingest raw GDELT events files for a 
-# single day, saves the source CSVs to DBFS, and appends the data to a bronze 
-# Delta table. The bronze layer preserves raw source data with minimal 
-# validation (e.g., file size and expected columns) and applies no 
+# This script contains a function that ingests raw GDELT events files for a 
+# single day, downloads them to a Unity Catalog Volume, and appends the data 
+# to a bronze Delta table. The bronze layer preserves raw source data with 
+# minimal validation (e.g., file size and expected columns) and applies no 
 # transformations. The table is partitioned by download date.
 
 
 import datetime
 import requests
-import zipfile
 import os
-import tempfile
 import shutil
+import zipfile
 from pyspark.sql import SparkSession
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from pyspark.sql.functions import (
     lit,
-    current_timestamp
+    current_timestamp,
+    col
+)
+from pyspark.sql.types import (
+    LongType,
+    IntegerType,
+    DoubleType
 )
 
 EXPECTED_GDELT_COLUMNS = [
@@ -47,9 +53,9 @@ def get_gdelt_file_urls(settings: dict[str, str],
         (typically, yesterday's date).
     
     Returns:
-        A list of expected GDELT events file names for the given date.
+        A list of expected GDELT events file URLs for the given date.
     """
-    gdelt_file_names = []
+    gdelt_file_urls = []
     for hour in range(24):
         for minute in range(0, 60, 15):
             ts = datetime.datetime(download_date.year, 
@@ -57,9 +63,51 @@ def get_gdelt_file_urls(settings: dict[str, str],
                           download_date.day, 
                           hour, 
                           minute).strftime("%Y%m%d%H%M%S")
-            url = f"{settings["gdelt_url_prefix"]}{ts}.export.CSV.zip"
-            gdelt_file_names.append(url)
-    return gdelt_file_names
+            url = f"{settings['gdelt_url_prefix']}{ts}.export.CSV.zip"
+            gdelt_file_urls.append(url)
+    return gdelt_file_urls
+
+def download_file(url: str, staging_path: str) -> tuple[str, str, bool]:
+    """
+    This function downloads a single GDELT file to the staging directory and extracts it.
+    
+    Args:
+        url: The URL to download from.
+        staging_path: Path to save files to (Unity Catalog Volume path).
+        
+    Returns:
+        Tuple of (url, csv_file_path, success).
+    """
+    try:
+        filename = url.split('/')[-1]
+        zip_path = f"{staging_path}/{filename}"
+        r = requests.get(url, timeout=30)
+        if r.status_code != 200:
+            print(f"Skipping missing file: {url}")
+            return (url, None, False)
+        
+        # Write zip file to Unity Catalog Volume.
+        with open(zip_path, "wb") as f:
+            f.write(r.content)
+        
+        # Extract the CSV file from the zip.
+        with zipfile.ZipFile(zip_path, "r") as z:
+            csv_files = [name for name in z.namelist() if name.endswith(".CSV")]
+            if not csv_files:
+                print(f"No CSV file found in {filename}")
+                return (url, None, False)
+            
+            # Extract the first CSV file.
+            z.extract(csv_files[0], staging_path)
+            csv_path = f"{staging_path}/{csv_files[0]}"
+        
+        # Remove the zip file to save space.
+        os.remove(zip_path)
+        return (url, csv_path, True)
+        
+    except Exception as e:
+        print(f"Error downloading {url}: {e}")
+        return (url, None, False)
 
 def validate_bronze(df):
     """
@@ -93,70 +141,82 @@ def ingest_raw_data(settings: dict[str, str],
     """
     print(f"Beginning bronze ingestion for the following date: {download_date}.")
     spark = SparkSession.builder.getOrCreate()
+    
+    # Use Unity Catalog Volume for staging (accessible to all cluster nodes).
+    staging_path = f"/Volumes/gdelt_project/bronze/staging_files/{download_date}"
+    os.makedirs(staging_path, exist_ok=True)
+    
+    # Get all URLs for the download date.
     gdelt_urls = get_gdelt_file_urls(settings, download_date)
-    all_dfs = []
-    for url in gdelt_urls:
-        tmp_dir = tempfile.mkdtemp()
-        zip_path = os.path.join(tmp_dir, "gdelt.zip")
-        try:
-            r = requests.get(url, timeout=30)
-            if r.status_code != 200:
-                print(f"Skipping missing file: {url}.")
-                continue
+    
+    # Download files in parallel.
+    successful_downloads = []
+    with ThreadPoolExecutor(max_workers=10) as executor:
+        futures = [executor.submit(download_file, url, staging_path) for url in gdelt_urls]
+        for future in as_completed(futures):
+            url, file_path, success = future.result()
+            if success:
+                successful_downloads.append((url, file_path))
+    if not successful_downloads:
+        raise RuntimeError("No GDELT files were successfully downloaded.")
+    if len(successful_downloads) != len(gdelt_urls):
+        raise RuntimeError("The expected number of GDELT files were not downloaded.")
+    
+    # Read all downloaded CSV files with Spark.
+    file_paths = [path for _, path in successful_downloads]
+    df = (
+        spark.read
+        .option("header", "false")
+        .option("delimiter", "\t")
+        .csv(file_paths)
+        .toDF(*EXPECTED_GDELT_COLUMNS)
+    )
+    
+    # Cast columns to correct types to match table schema.
+    df = (
+        df
+        .withColumn("GlobalEventID", col("GlobalEventID").cast(LongType()))
+        .withColumn("Day", col("Day").cast(IntegerType()))
+        .withColumn("MonthYear", col("MonthYear").cast(IntegerType()))
+        .withColumn("Year", col("Year").cast(IntegerType()))
+        .withColumn("FractionDate", col("FractionDate").cast(DoubleType()))
+        .withColumn("IsRootEvent", col("IsRootEvent").cast(IntegerType()))
+        .withColumn("QuadClass", col("QuadClass").cast(IntegerType()))
+        .withColumn("GoldsteinScale", col("GoldsteinScale").cast(DoubleType()))
+        .withColumn("NumMentions", col("NumMentions").cast(IntegerType()))
+        .withColumn("NumSources", col("NumSources").cast(IntegerType()))
+        .withColumn("NumArticles", col("NumArticles").cast(IntegerType()))
+        .withColumn("AvgTone", col("AvgTone").cast(DoubleType()))
+        .withColumn("Actor1Geo_Type", col("Actor1Geo_Type").cast(IntegerType()))
+        .withColumn("Actor1Geo_Lat", col("Actor1Geo_Lat").cast(DoubleType()))
+        .withColumn("Actor1Geo_Long", col("Actor1Geo_Long").cast(DoubleType()))
+        .withColumn("Actor2Geo_Type", col("Actor2Geo_Type").cast(IntegerType()))
+        .withColumn("Actor2Geo_Lat", col("Actor2Geo_Lat").cast(DoubleType()))
+        .withColumn("Actor2Geo_Long", col("Actor2Geo_Long").cast(DoubleType()))
+        .withColumn("ActionGeo_Type", col("ActionGeo_Type").cast(IntegerType()))
+        .withColumn("ActionGeo_Lat", col("ActionGeo_Lat").cast(DoubleType()))
+        .withColumn("ActionGeo_Long", col("ActionGeo_Long").cast(DoubleType()))
+    )
+    
+    # Add metadata columns.
+    df = (
+        df
+        .withColumn("download_date", lit(download_date))
+        .withColumn("ingested_at", current_timestamp())
+    )
 
-            # Write .zip file locally.
-            with open(zip_path, "wb") as f:
-                f.write(r.content)
-
-            # Extract the .csv.
-            with zipfile.ZipFile(zip_path, "r") as z:
-                z.extractall(tmp_dir)
-
-            csv_files = [
-                os.path.join(tmp_dir, f)
-                for f in os.listdir(tmp_dir)
-                if f.endswith(".CSV")
-            ]
-
-            if not csv_files:
-                print(f"No .csv file found in: {url}. Skipping this file.")
-                continue
-
-            df = (
-                spark.read
-                .option("header", "false")
-                .option("delimiter", "\t")
-                .csv([f"file:{f}" for f in csv_files])
-                .toDF(*EXPECTED_GDELT_COLUMNS)
-            )
-
-            # Add some metadata columns.
-            df = (
-                df
-                .withColumn("download_date", lit(download_date))
-                .withColumn("ingested_at", current_timestamp())
-                .withColumn("data_file_url", lit(url))
-            )
-
-            all_dfs.append(df)
-
-        finally:
-            shutil.rmtree(tmp_dir, ignore_errors=True)
-
-    if not all_dfs:
-        raise RuntimeError("No GDELT files were ingested.")
-
-    final_df = all_dfs[0]
-    for df in all_dfs[1:]:
-        final_df = final_df.unionByName(df)
-
-    validate_bronze(final_df)
-
+    # Perform data validation before writing to Delta table.
+    validate_bronze(df)
+    
+    # Write to Delta table.
     (
-        final_df.write
+        df.write
         .format("delta")
         .mode("append")
         .partitionBy("download_date")
         .saveAsTable(settings["bronze_table_name"])
     )
+    
+    # Clean up the staging directory.
+    shutil.rmtree(staging_path, ignore_errors=True)
     print("Bronze ingestion is complete!")

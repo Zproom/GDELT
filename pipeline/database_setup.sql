@@ -89,9 +89,11 @@ CREATE TABLE IF NOT EXISTS bronze.events (
 
     -- Ingestion metadata
     download_date         DATE,
-    ingested_at           TIMESTAMP,
-    data_file_url         STRING
+    ingested_at           TIMESTAMP
 )
 USING DELTA
 PARTITIONED BY (download_date)
 COMMENT 'Raw GDELT events data';
+
+-- Volumes
+CREATE VOLUME IF NOT EXISTS gdelt_project.bronze.staging_files;
