@@ -119,7 +119,7 @@ def ingest_raw_data(settings: dict[str, str],
 
     # Download and extract the file to DBFS.
     for url in gdelt_urls:
-        download_and_extract_to_dbfs(url, settings["raw_data_path"])
+        download_and_extract_to_dbfs(settings, url)
     df = (
         spark.read
         .option("header", "false")
