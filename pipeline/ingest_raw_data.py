@@ -15,6 +15,9 @@ from pyspark.sql.functions import (
     current_timestamp,
     input_file_name
 )
+from pyspark.dbutils import DBUtils
+spark = SparkSession.builder.getOrCreate()
+dbutils = DBUtils(spark)
 
 EXPECTED_GDELT_COLUMNS = [
     "GlobalEventID", "Day", "MonthYear", "Year", "FractionDate",
@@ -118,7 +121,6 @@ def ingest_raw_data(settings: dict[str, str],
     Returns:
         Nothing.
     """
-    spark = SparkSession.builder.getOrCreate()
     gdelt_urls = get_gdelt_file_urls(settings, download_date)
 
     # Download and extract the file to DBFS.
