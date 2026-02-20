@@ -2,7 +2,7 @@
 # single day, saves the source CSVs to DBFS, and appends the data to a bronze 
 # Delta table. The bronze layer preserves raw source data with minimal 
 # validation (e.g., file size and expected columns) and applies no 
-# transformations. The table is partitioned by ingestion date.
+# transformations. The table is partitioned by download date.
 
 
 import datetime
@@ -41,6 +41,8 @@ def get_gdelt_file_urls(settings: dict[str, str],
     given date.
 
     Args:
+        settings: A dictionary containing various settings needed for the 
+        ingestion process, such as the table names.
         download_date: The date for which to generate the file names 
         (typically, yesterday's date).
     
@@ -77,12 +79,12 @@ def validate_bronze(df):
 def ingest_raw_data(settings: dict[str, str], 
                     download_date: datetime.date) -> None:
     """
-    This function ingests raw GDELT events files for a single day, saves the 
-    source CSVs to DBFS, and appends the data to a bronze Delta table.
+    This function ingests raw GDELT events files for a single day and appends 
+    the data to a bronze Delta table.
 
     Args:
         settings: A dictionary containing various settings needed for the 
-        ingestion process, such as the table name and DBFS path.
+        ingestion process, such as the table names.
         download_date: The date of the data being ingested (typically, 
         yesterday's date).
 
@@ -124,13 +126,14 @@ def ingest_raw_data(settings: dict[str, str],
                 spark.read
                 .option("header", "false")
                 .option("delimiter", "\t")
-                .csv([f"file:{p}" for p in csv_files])
+                .csv([f"file:{f}" for f in csv_files])
                 .toDF(*EXPECTED_GDELT_COLUMNS)
             )
 
+            # Add some metadata columns.
             df = (
                 df
-                .withColumn("ingestion_date", lit(download_date))
+                .withColumn("download_date", lit(download_date))
                 .withColumn("ingested_at", current_timestamp())
                 .withColumn("source_url", lit(url))
             )
@@ -153,7 +156,7 @@ def ingest_raw_data(settings: dict[str, str],
         final_df.write
         .format("delta")
         .mode("append")
-        .partitionBy("ingestion_date")
+        .partitionBy("download_date")
         .saveAsTable(settings["bronze_table_name"])
     )
     print("Bronze ingestion is complete!")
