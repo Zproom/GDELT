@@ -96,4 +96,4 @@ PARTITIONED BY (download_date)
 COMMENT 'Raw GDELT events data';
 
 -- Volumes
-CREATE VOLUME IF NOT EXISTS gdelt_project.bronze.staging_files;
+CREATE VOLUME IF NOT EXISTS bronze.staging_files;
