@@ -213,7 +213,8 @@ def ingest_raw_data(settings: dict[str, str],
     (
         df.write
         .format("delta")
-        .mode("append")
+        .mode("overwrite")
+        .option("partitionOverwriteMode", "dynamic")
         .partitionBy("download_date")
         .saveAsTable(settings["bronze_table_name"])
     )
