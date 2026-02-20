@@ -135,7 +135,7 @@ def ingest_raw_data(settings: dict[str, str],
                 df
                 .withColumn("download_date", lit(download_date))
                 .withColumn("ingested_at", current_timestamp())
-                .withColumn("source_url", lit(url))
+                .withColumn("data_file_url", lit(url))
             )
 
             all_dfs.append(df)
