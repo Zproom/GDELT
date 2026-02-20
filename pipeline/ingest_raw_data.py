@@ -8,7 +8,7 @@
 import datetime
 import requests
 import zipfile
-import io
+import os
 from pyspark.sql import SparkSession
 from pyspark.sql.functions import (
     lit,
@@ -70,19 +70,23 @@ def download_and_extract_to_dbfs(settings: dict[str, str], url: str) -> None:
     Returns:
         Nothing.
     """
+    local_zip = "/tmp/gdelt.zip"
+    local_extract_dir = "/tmp/gdelt_extract"
     response = requests.get(url, timeout=30)
-
     if response.status_code != 200:
         print(f"Skipping missing file: {url}")
         return
-
-    with zipfile.ZipFile(io.BytesIO(response.content)) as z:
-        for name in z.namelist():
-            csv_bytes = z.read(name)
-            output_path = f"{settings["raw_data_path"]}{name}"
-
-            with open(output_path.replace("dbfs:/", "/dbfs/"), "wb") as f:
-                f.write(csv_bytes)
+    with open(local_zip, "wb") as f:
+        f.write(response.content)
+    with zipfile.ZipFile(local_zip, "r") as z:
+        z.extractall(local_extract_dir)
+    for filename in os.listdir(local_extract_dir):
+        local_file = f"{local_extract_dir}/{filename}"
+        dbfs_file = f"{settings["raw_data_path"]}/{filename}"
+        dbutils.fs.mv(
+            f"file:{local_file}",
+            dbfs_file
+        )
 
 def validate_bronze(df):
     """
