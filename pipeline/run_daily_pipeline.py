@@ -10,7 +10,6 @@ if __name__ == "__main__":
     # Define the parameters for the pipeline, such as the table name and DBFS 
     # path.
     settings = {
-        "raw_data_path": "dbfs:/Volumes/gdelt_project/bronze/raw_data/",
         "bronze_table_name": "gdelt_project.bronze.events",
         "gdelt_url_prefix": "http://data.gdeltproject.org/gdeltv2/"
     }

@@ -6,8 +6,6 @@ CREATE SCHEMA IF NOT EXISTS gdelt_project.bronze;
 CREATE SCHEMA IF NOT EXISTS gdelt_project.silver;
 CREATE SCHEMA IF NOT EXISTS gdelt_project.gold;
 
-CREATE TABLE gdelt_project.bronze.events;
-CREATE TABLE gdelt_project.silver.events;
-CREATE TABLE gdelt_project.gold.events;
-
-CREATE VOLUME gdelt_project.bronze.raw_data;
+CREATE TABLE IF NOT EXISTS gdelt_project.bronze.events;
+CREATE TABLE IF NOT EXISTS gdelt_project.silver.events;
+CREATE TABLE IF NOT EXISTS gdelt_project.gold.events;
