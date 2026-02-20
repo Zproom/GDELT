@@ -9,6 +9,7 @@ import datetime
 import requests
 import zipfile
 import os
+import tempfile
 from pyspark.sql import SparkSession
 from pyspark.sql.functions import (
     lit,
@@ -73,18 +74,18 @@ def download_and_extract_to_dbfs(settings: dict[str, str], url: str) -> None:
     Returns:
         Nothing.
     """
-    local_zip = "/tmp/gdelt.zip"
-    local_extract_dir = "/tmp/gdelt_extract"
+    tmp_dir = tempfile.mkdtemp()
+    tmp_zip = os.path.join(tmp_dir, "gdelt.zip")
     response = requests.get(url, timeout=30)
     if response.status_code != 200:
         print(f"Skipping missing file: {url}")
         return
     with open(local_zip, "wb") as f:
         f.write(response.content)
-    with zipfile.ZipFile(local_zip, "r") as z:
-        z.extractall(local_extract_dir)
-    for filename in os.listdir(local_extract_dir):
-        local_file = f"{local_extract_dir}/{filename}"
+    with zipfile.ZipFile(tmp_zip, "r") as z:
+        z.extractall(tmp_dir)
+    for filename in os.listdir(tmp_dir):
+        local_file = f"{tmp_dir}/{filename}"
         dbfs_file = f"{settings["raw_data_path"]}/{filename}"
         dbutils.fs.mv(
             f"file:{local_file}",
