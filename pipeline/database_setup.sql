@@ -1,10 +1,7 @@
 -- This file contains the initial database setup for the GDELT project. This 
--- should only need to be run once, but it's safe to run multiple times.
+-- should only need to be run once, but it's safe to run multiple times. The
+-- script assumes you have already created a catalog called gdelt_project.
 
-
--- Catalog
-CREATE CATALOG IF NOT EXISTS gdelt_project
-COMMENT 'Catalog for GDELT-based social unrest analysis project';
 
 USE CATALOG gdelt_project;
 
