@@ -69,7 +69,8 @@ def get_gdelt_file_urls(settings: dict[str, str],
 
 def download_file(url: str, staging_path: str) -> tuple[str, str, bool]:
     """
-    This function downloads a single GDELT file to the staging directory and extracts it.
+    This function downloads a single GDELT file to the staging directory and 
+    extracts it.
     
     Args:
         url: The URL to download from.
