@@ -10,6 +10,7 @@ if __name__ == "__main__":
     # Define the parameters for the pipeline, such as the table names.
     settings = {
         "bronze_table_name": "gdelt_project.bronze.events",
+        "silver_table_name": "gdelt_project.silver.events",
         "gdelt_url_prefix": "http://data.gdeltproject.org/gdeltv2/"
     }
 
