@@ -95,7 +95,7 @@ USING DELTA
 PARTITIONED BY (download_date)
 COMMENT 'Raw GDELT events data';
 
-CREATE TABLE IF NOT EXISTS gdelt_project.silver.events (
+CREATE TABLE IF NOT EXISTS silver.events (
     GlobalEventID         BIGINT,
     event_date            DATE,
 

@@ -103,7 +103,16 @@ def update_silver_layer(settings: dict[str, str],
         silver_df.write
         .format("delta")
         .mode("overwrite")
-        .option("replaceWhere", f"ingestion_date = '{download_date}'")
+        .option("replaceWhere", f"event_date = '{download_date}'")
+        .partitionBy("event_date")
         .saveAsTable(settings["silver_table_name"])
     )
+
+    # It's expected queries will be done mainly on the event_date, 
+    # Actor1CountryCode, and Actor2CountryCode columns, so these should be 
+    # optimized.
+    spark.sql(f"""
+        OPTIMIZE {settings["silver_table_name"]}
+        ZORDER BY (Actor1CountryCode, Actor2CountryCode)
+    """)
     print("Silver ingestion is complete!")
