@@ -45,7 +45,7 @@ def validate_silver(df: pyspark.sql.DataFrame,
             f"Actual:   {df.columns}"
         )
     if df.count() == 0:
-        raise ValueError(f"No silver data produced for {download_date}")
+        raise ValueError("No rows ingested into Silver layer.")
     if df.select("download_date").distinct().count() > 1:
         raise ValueError("Silver ingestion contains multiple download dates.")
     dupes = (
@@ -56,22 +56,24 @@ def validate_silver(df: pyspark.sql.DataFrame,
         .count()
     )
     if dupes > 0:
-        raise ValueError("Duplicate GlobalEventID values found in silver data")
+        raise ValueError("Duplicate GlobalEventID values found in silver data.")
 
 def update_silver_layer(settings: dict[str, str], 
                         download_date: datetime.date) -> None:
     """
-    Builds the silver layer incrementally for a single download_date.
+    This function builds the silver layer incrementally for a single 
+    download_date.
 
     Args:
         settings: A dictionary containing various settings needed for the 
         silver layer update process, such as table names.
-        download_date: The download_date to process (typically yesterday's date).
+        download_date: The date of the data being ingested (typically, 
+        yesterday's date).
 
     Returns:
         Nothing.
     """
-    print(f"Beginning silver update for the following date: {download_date}.")
+    print(f"Beginning silver ingestion for the following date: {download_date}.")
     spark = SparkSession.builder.getOrCreate()
 
     # Read only the relevant bronze partition.
@@ -82,16 +84,16 @@ def update_silver_layer(settings: dict[str, str],
     silver_df = (
         bronze_df
 
-        # Normalize event date.
+        # Convert the event date column to a proper date type.
         .withColumn(
             "event_date",
             to_date(col("Day").cast("string"), "yyyyMMdd")
         )
 
-        # Filter to unrest-related events.
+        # Filter the data to unrest-related events.
         .filter(col("EventRootCode").isin(UNREST_CAMEOEVENT_CODES))
 
-        # Drop rows missing essential columns for SURI calculation.
+        # Drop rows missing essential columns for the SURI calculation.
         .dropna(subset=ESSENTIAL_COLUMNS)
     )
 
@@ -108,9 +110,9 @@ def update_silver_layer(settings: dict[str, str],
         .saveAsTable(settings["silver_table_name"])
     )
 
-    # It's expected queries will be done mainly on the event_date, 
+    # It's expected queries will primarily use the event_date, 
     # Actor1CountryCode, and Actor2CountryCode columns, so these should be 
-    # optimized.
+    # optimized for retrieval.
     spark.sql(f"""
         OPTIMIZE {settings["silver_table_name"]}
         ZORDER BY (Actor1CountryCode, Actor2CountryCode)
