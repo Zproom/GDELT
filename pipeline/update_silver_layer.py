@@ -19,13 +19,29 @@ EXPECTED_SILVER_COLUMNS = [
     "download_date", "ingested_at"
 ]
 
+# Only store data for the following countries, which dominate international 
+# news coverage and drive geopolitical risk. In plain English, the country 
+# names are:
+# USA, China, Russia, UK, France, Germany,
+# Ukraine, Israel, Palestine, Iran, Syria,
+# India, Brazil, Mexico, Turkey,
+# Democratic Republic of the Congo, Rwanda, Ethiopia, Eritrea, Eritrea, 
+# Pakistan, Egypt, Venezuela, Argentina, North Korea, Taiwan, South Korea
+FOCUS_CAMEOCOUNTRY_CODES = [
+    "USA", "CHN", "RUS", "GBR", "FRA", "DEU",
+    "UKR", "ISR", "PSE", "IRN", "SYR",
+    "IND", "BRA", "MEX", "TUR",
+    "COD", "RWA", "ETH", "ERI",
+    "PAK", "EGY", "VEN", "ARG", "PRK", "TWN", "KOR"
+]
+
 # 10: Demand, 13: Threaten, 14: Protest.
 UNREST_CAMEOEVENT_CODES = ["10", "13", "14"]
 
 # These columns can't have missing values. They are essential for computing 
-# SURI scores.
-ESSENTIAL_COLUMNS = ["event_date", "Actor1CountryCode", 
-                     "Actor2CountryCode", "EventRootCode"]
+# SURI scores. Actor1CountryCode is allowed to be missing because domestic
+# protestors and other non-state actors may not have a country code.
+ESSENTIAL_COLUMNS = ["event_date", "Actor2CountryCode", "EventRootCode"]
 
 def validate_silver(df: pyspark.sql.DataFrame, 
                     download_date: datetime.date) -> None:
@@ -93,8 +109,16 @@ def update_silver_layer(settings: dict[str, str],
         # Filter the data to unrest-related events.
         .filter(col("EventRootCode").isin(UNREST_CAMEOEVENT_CODES))
 
+        # Filter the data to focus countries. Actor2CountryCode must be a focus 
+        # country, but Actor1CountryCode doesn't have to be (can be missing), 
+        # so non-state actors like domestic protestors are included.
+        .filter(col("Actor2CountryCode").isin(FOCUS_CAMEOCOUNTRY_CODES))
+
         # Drop rows missing essential columns for the SURI calculation.
         .dropna(subset=ESSENTIAL_COLUMNS)
+
+        # Drop duplicate rows.
+        .dropDuplicates(["GlobalEventID"])
     )
 
     # Perform data validation before writing to Delta table.
