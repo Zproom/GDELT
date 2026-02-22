@@ -12,6 +12,7 @@ import shutil
 import zipfile
 from pyspark.sql import SparkSession
 from concurrent.futures import ThreadPoolExecutor, as_completed
+from pyspark.sql import DataFrame
 from pyspark.sql.functions import (
     lit,
     current_timestamp,
@@ -110,7 +111,7 @@ def download_file(url: str, staging_path: str) -> tuple[str, str, bool]:
         print(f"Error downloading {url}: {e}")
         return (url, None, False)
 
-def validate_bronze(df: pyspark.sql.DataFrame) -> None:
+def validate_bronze(df: DataFrame) -> None:
     """
     This function validates the schema and count of the bronze layer DataFrame.
 
@@ -120,7 +121,7 @@ def validate_bronze(df: pyspark.sql.DataFrame) -> None:
     Returns:
         Nothing. Raises an error if validation fails.
     """
-    if df.columns != EXPECTED_GDELT_COLUMNS:
+    if df.columns[:len(EXPECTED_GDELT_COLUMNS)] != EXPECTED_GDELT_COLUMNS:
         raise ValueError(
                 f"The actual GDELT events schema does not match the expected schema.\n"
                 f"Expected: {EXPECTED_GDELT_COLUMNS}\n"

@@ -6,6 +6,7 @@
 
 import datetime
 from pyspark.sql import SparkSession
+from pyspark.sql import DataFrame
 from pyspark.sql.functions import col, to_date
 
 EXPECTED_SILVER_COLUMNS = [
@@ -43,7 +44,7 @@ UNREST_CAMEOEVENT_CODES = ["10", "13", "14"]
 # protestors and other non-state actors may not have a country code.
 ESSENTIAL_COLUMNS = ["event_date", "Actor2CountryCode", "EventRootCode"]
 
-def validate_silver(df: pyspark.sql.DataFrame, 
+def validate_silver(df: DataFrame, 
                     download_date: datetime.date) -> None:
     """
     This function performs basic data quality checks on the silver DataFrame.
@@ -105,6 +106,7 @@ def update_silver_layer(settings: dict[str, str],
             "event_date",
             to_date(col("Day").cast("string"), "yyyyMMdd")
         )
+        .select(*EXPECTED_SILVER_COLUMNS)
 
         # Filter the data to unrest-related events.
         .filter(col("EventRootCode").isin(UNREST_CAMEOEVENT_CODES))
@@ -129,7 +131,7 @@ def update_silver_layer(settings: dict[str, str],
         silver_df.write
         .format("delta")
         .mode("overwrite")
-        .option("replaceWhere", f"event_date = '{download_date}'")
+        .option("partitionOverwriteMode", "dynamic")
         .partitionBy("event_date")
         .saveAsTable(settings["silver_table_name"])
     )
