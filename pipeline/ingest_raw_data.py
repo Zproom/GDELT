@@ -12,6 +12,7 @@ import shutil
 import zipfile
 from pyspark.sql import SparkSession
 from concurrent.futures import ThreadPoolExecutor, as_completed
+from pyspark.sql import DataFrame
 from pyspark.sql.functions import (
     lit,
     current_timestamp,
@@ -110,9 +111,9 @@ def download_file(url: str, staging_path: str) -> tuple[str, str, bool]:
         print(f"Error downloading {url}: {e}")
         return (url, None, False)
 
-def validate_bronze(df):
+def validate_bronze(df: DataFrame) -> None:
     """
-    Validates the schema and count of the bronze layer DataFrame.
+    This function validates the schema and count of the bronze layer DataFrame.
 
     Args:
         df: The DataFrame to validate.
@@ -121,9 +122,15 @@ def validate_bronze(df):
         Nothing. Raises an error if validation fails.
     """
     if df.columns[:len(EXPECTED_GDELT_COLUMNS)] != EXPECTED_GDELT_COLUMNS:
-        raise ValueError("The actual GDELT events schema does not match the expected schema.")
+        raise ValueError(
+                f"The actual GDELT events schema does not match the expected schema.\n"
+                f"Expected: {EXPECTED_GDELT_COLUMNS}\n"
+                f"Actual:   {df.columns}"
+            )
     if df.count() == 0:
         raise ValueError("No rows ingested into Bronze layer.")
+    if df.select("download_date").distinct().count() > 1:
+        raise ValueError("Bronze ingestion contains multiple download dates.")
 
 def ingest_raw_data(settings: dict[str, str], 
                     download_date: datetime.date) -> None:
@@ -213,7 +220,8 @@ def ingest_raw_data(settings: dict[str, str],
     (
         df.write
         .format("delta")
-        .mode("append")
+        .mode("overwrite")
+        .option("partitionOverwriteMode", "dynamic")
         .partitionBy("download_date")
         .saveAsTable(settings["bronze_table_name"])
     )

@@ -95,5 +95,43 @@ USING DELTA
 PARTITIONED BY (download_date)
 COMMENT 'Raw GDELT events data';
 
+CREATE TABLE IF NOT EXISTS silver.events (
+    GlobalEventID         BIGINT,
+    event_date            DATE,
+
+    Actor1Code            STRING,
+    Actor1Name            STRING,
+    Actor1CountryCode     STRING,
+    Actor1KnownGroupCode  STRING,
+    Actor1Type1Code       STRING,
+    Actor1Type2Code       STRING,
+    Actor1Type3Code       STRING,
+
+    Actor2Code            STRING,
+    Actor2Name            STRING,
+    Actor2CountryCode     STRING,
+    Actor2KnownGroupCode  STRING,
+    Actor2Type1Code       STRING,
+    Actor2Type2Code       STRING,
+    Actor2Type3Code       STRING,
+
+    EventCode             STRING,
+    EventBaseCode         STRING,
+    EventRootCode         STRING,
+    QuadClass             INT,
+
+    GoldsteinScale        DOUBLE,
+    NumMentions           INT,
+    NumSources            INT,
+    NumArticles           INT,
+    AvgTone               DOUBLE,
+
+    download_date         DATE,
+    ingested_at           TIMESTAMP
+)
+USING DELTA
+PARTITIONED BY (event_date)
+COMMENT 'Cleaned and filtered GDELT events data';
+
 -- Volumes
-CREATE VOLUME IF NOT EXISTS gdelt_project.bronze.staging_files;
+CREATE VOLUME IF NOT EXISTS bronze.staging_files;
