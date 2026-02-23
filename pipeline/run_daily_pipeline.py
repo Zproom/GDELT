@@ -10,11 +10,11 @@ from constants import SETTINGS
 if __name__ == "__main__":
 
     # Get yesterday's date to use as the ingestion date.
-    download_date = datetime.date.today() - datetime.timedelta(days=1)
+    input_file_date = datetime.date.today() - datetime.timedelta(days=1)
 
     # Run the ingestion function to ingest raw GDELT events files for 
     # yesterday's date.
-    ingest_raw_data(SETTINGS, download_date)
+    ingest_raw_data(SETTINGS, input_file_date)
 
     # Run silver ingestion.
-    update_silver_layer(SETTINGS, download_date)
+    update_silver_layer(SETTINGS, input_file_date)

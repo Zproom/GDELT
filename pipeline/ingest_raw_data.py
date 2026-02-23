@@ -42,7 +42,7 @@ EXPECTED_GDELT_COLUMNS = [
 ]
 
 def get_gdelt_file_urls(settings: dict[str, str], 
-                        download_date: datetime.date) -> list[str]:
+                        input_file_date: datetime.date) -> list[str]:
     """
     This function generates all the expected GDELT events file URLs for a 
     given date.
@@ -50,7 +50,7 @@ def get_gdelt_file_urls(settings: dict[str, str],
     Args:
         settings: A dictionary containing various settings needed for the 
         ingestion process, such as the table names.
-        download_date: The date for which to generate the file names 
+        input_file_date: The date for which to generate the file names 
         (typically, yesterday's date).
     
     Returns:
@@ -59,9 +59,9 @@ def get_gdelt_file_urls(settings: dict[str, str],
     gdelt_file_urls = []
     for hour in range(24):
         for minute in range(0, 60, 15):
-            ts = datetime.datetime(download_date.year, 
-                          download_date.month, 
-                          download_date.day, 
+            ts = datetime.datetime(input_file_date.year, 
+                          input_file_date.month, 
+                          input_file_date.day, 
                           hour, 
                           minute).strftime("%Y%m%d%H%M%S")
             url = f"{settings['gdelt_url_prefix']}{ts}.export.CSV.zip"
@@ -129,11 +129,11 @@ def validate_bronze(df: DataFrame) -> None:
             )
     if df.count() == 0:
         raise ValueError("No rows ingested into Bronze layer.")
-    if df.select("download_date").distinct().count() > 1:
+    if df.select("input_file_date").distinct().count() > 1:
         raise ValueError("Bronze ingestion contains multiple download dates.")
 
 def ingest_raw_data(settings: dict[str, str], 
-                    download_date: datetime.date) -> None:
+                    input_file_date: datetime.date) -> None:
     """
     This function ingests raw GDELT events files for a single day and appends 
     the data to a bronze Delta table.
@@ -141,21 +141,21 @@ def ingest_raw_data(settings: dict[str, str],
     Args:
         settings: A dictionary containing various settings needed for the 
         ingestion process, such as the table names.
-        download_date: The date of the data being ingested (typically, 
+        input_file_date: The date of the data being ingested (typically, 
         yesterday's date).
 
     Returns:
         Nothing.
     """
-    print(f"Beginning bronze ingestion for the following date: {download_date}.")
+    print(f"Beginning bronze ingestion for the following date: {input_file_date}.")
     spark = SparkSession.builder.getOrCreate()
     
     # Use Unity Catalog Volume for staging (accessible to all cluster nodes).
-    staging_path = f"/Volumes/gdelt_project/bronze/staging_files/{download_date}"
+    staging_path = f"/Volumes/gdelt_project/bronze/staging_files/{input_file_date}"
     os.makedirs(staging_path, exist_ok=True)
     
     # Get all URLs for the download date.
-    gdelt_urls = get_gdelt_file_urls(settings, download_date)
+    gdelt_urls = get_gdelt_file_urls(settings, input_file_date)
     
     # Download files in parallel.
     successful_downloads = []
@@ -209,7 +209,7 @@ def ingest_raw_data(settings: dict[str, str],
     # Add metadata columns.
     df = (
         df
-        .withColumn("download_date", lit(download_date))
+        .withColumn("input_file_date", lit(input_file_date))
         .withColumn("ingested_at", current_timestamp())
     )
 
@@ -222,7 +222,7 @@ def ingest_raw_data(settings: dict[str, str],
         .format("delta")
         .mode("overwrite")
         .option("partitionOverwriteMode", "dynamic")
-        .partitionBy("download_date")
+        .partitionBy("input_file_date")
         .saveAsTable(settings["bronze_table_name"])
     )
     

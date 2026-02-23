@@ -14,12 +14,12 @@ if __name__ == "__main__":
     start_date = datetime.date(2026, 1, 1)
     end_date = datetime.date.today() - datetime.timedelta(days=1)
     date_range = (end_date - start_date).days + 1
-    all_download_dates = [start_date + datetime.timedelta(days=i) for i in range(date_range)]
-    for download_date in all_download_dates:
+    all_input_file_dates = [start_date + datetime.timedelta(days=i) for i in range(date_range)]
+    for input_file_date in all_input_file_dates:
 
         # Run the ingestion function to ingest raw GDELT events files for 
         # the current date in the loop.
-        ingest_raw_data(SETTINGS, download_date)
+        ingest_raw_data(SETTINGS, input_file_date)
 
         # Run silver ingestion.
-        update_silver_layer(SETTINGS, download_date)
+        update_silver_layer(SETTINGS, input_file_date)
