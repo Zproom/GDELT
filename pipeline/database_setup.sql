@@ -139,7 +139,7 @@ CREATE TABLE IF NOT EXISTS silver.events (
     ingested into the database.'
 )
 USING DELTA
-PARTITIONED BY (input_file_date)
+PARTITIONED BY (event_date)
 COMMENT 'Cleaned and filtered GDELT events data. See the GDELT documentation \
 for descriptions about columns included in the input data. These columns are \
 in all caps. Derived columns are in snake_case.';
