@@ -152,9 +152,9 @@ CREATE TABLE IF NOT EXISTS gold.suri (
 
     total_events          INT COMMENT 'The total number of events performed \
     by the source actor on the target actor.',
-    geo_unrest_score      INT COMMENT 'The total number of unrest-related \
-    events (CAMEO event codes 10, 13, and 14) performed by the source actor \
-    on the target actor.',
+    geo_unrest_score      INT COMMENT 'The geopolitical unrest score, which \
+    is the total number of unrest-related events (CAMEO event codes 10, 13, \
+    and 14) performed by the source actor on the target actor.',
     total_gov_gov_events  INT COMMENT 'The total number of events where the \
     source Type1Code is "GOV" and the target Type1Code is "GOV".',
     total_ngov_gov_events INT COMMENT 'The total number of events where the \
