@@ -62,7 +62,7 @@ def validate_silver(df: DataFrame,
     if df.count() == 0:
         raise ValueError("No rows ingested into Silver layer.")
     if df.select("input_file_date").distinct().count() > 1:
-        raise ValueError("Silver ingestion contains multiple download dates.")
+        raise ValueError("Silver ingestion contains multiple input file dates.")
     dupes = (
         df.groupBy("GlobalEventID")
         .count()
@@ -76,7 +76,8 @@ def validate_silver(df: DataFrame,
 def update_silver_layer(settings: dict[str, str], 
                         input_file_date: datetime.date) -> None:
     """
-    This function builds the silver layer incrementally for a single day.
+    This function builds the silver layer incrementally for a single 
+    input_file_date.
 
     Args:
         settings: A dictionary containing various settings needed for the 

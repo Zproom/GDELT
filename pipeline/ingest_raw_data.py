@@ -130,7 +130,7 @@ def validate_bronze(df: DataFrame) -> None:
     if df.count() == 0:
         raise ValueError("No rows ingested into Bronze layer.")
     if df.select("input_file_date").distinct().count() > 1:
-        raise ValueError("Bronze ingestion contains multiple download dates.")
+        raise ValueError("Bronze ingestion contains multiple input file dates.")
 
 def ingest_raw_data(settings: dict[str, str], 
                     input_file_date: datetime.date) -> None:
