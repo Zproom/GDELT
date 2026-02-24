@@ -148,13 +148,13 @@ def update_gold_layer(settings: dict[str, str],
         F.col("Actor1CountryCode"),
         F.col("Actor2CountryCode")
     ).agg(
-        F.count("*").alias("total_events"),
+        F.count("*").cast("int").alias("total_events"),
         
         # Geopolitical unrest score: count of unrest events (codes 10, 13, 14).
         F.sum(
             F.when(F.col("EventRootCode").isin(UNREST_CAMEOEVENT_CODES), 1)
             .otherwise(0)
-        ).alias("geo_unrest_score"),
+        ).cast("int").alias("geo_unrest_score"),
         
         # Government-to-government events
         F.sum(
@@ -162,7 +162,7 @@ def update_gold_layer(settings: dict[str, str],
                 (F.col("Actor1Type1Code") == "GOV") & 
                 (F.col("Actor2Type1Code") == "GOV"), 1
             ).otherwise(0)
-        ).alias("total_gov_gov_events"),
+        ).cast("int").alias("total_gov_gov_events"),
         
         # Non-government to government events
         F.sum(
@@ -170,7 +170,7 @@ def update_gold_layer(settings: dict[str, str],
                 (F.col("Actor1Type1Code") != "GOV") & 
                 (F.col("Actor2Type1Code") == "GOV"), 1
             ).otherwise(0)
-        ).alias("total_ngov_gov_events"),
+        ).cast("int").alias("total_ngov_gov_events"),
         
         # Government to non-government events
         F.sum(
@@ -178,13 +178,13 @@ def update_gold_layer(settings: dict[str, str],
                 (F.col("Actor1Type1Code") == "GOV") & 
                 (F.col("Actor2Type1Code") != "GOV"), 1
             ).otherwise(0)
-        ).alias("total_gov_ngov_events"),
+        ).cast("int").alias("total_gov_ngov_events"),
         
         # Additional aggregate metrics
         F.avg("GoldsteinScale").alias("avg_goldstein"),
-        F.sum("NumMentions").alias("total_mentions"),
-        F.sum("NumSources").alias("total_sources"),
-        F.sum("NumArticles").alias("total_articles"),
+        F.sum("NumMentions").cast("int").alias("total_mentions"),
+        F.sum("NumSources").cast("int").alias("total_sources"),
+        F.sum("NumArticles").cast("int").alias("total_articles"),
         F.avg("AvgTone").alias("avg_tone")
     )
     
