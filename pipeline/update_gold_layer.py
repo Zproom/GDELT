@@ -127,8 +127,9 @@ def update_gold_layer(settings: dict[str, str],
     
     # Check if full month of data is available
     if require_full_month:
-        if not check_full_month_available(spark, 
-                                          settings["silver_table_name"], year_month):
+        if not check_full_month_available(settings,
+                                          spark,
+                                          year_month):
             print(
                 f"Skipping gold ingestion: "
                 f"Full month of data not yet available for "
