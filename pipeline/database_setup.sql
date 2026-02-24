@@ -189,7 +189,7 @@ PARTITIONED BY (year_month)
 COMMENT 'Monthly directional Social Unrest Risk Index (SURI) scores derived \
 from GDELT unrest events. See the GDELT documentation for descriptions about \
 columns included in the input data. These columns are in all caps. Derived \
-columns are in snake_case.'';
+columns are in snake_case.';
 
 -- Volumes
 CREATE VOLUME IF NOT EXISTS bronze.staging_files;
