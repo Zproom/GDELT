@@ -21,53 +21,46 @@ EXPECTED_GOLD_COLUMNS = [
     "ingested_at"
 ]
 
-def check_full_month_available(spark: SparkSession,
-                                silver_table_name: str,
-                                year_month: datetime.date) -> bool:
+def check_full_month_available(settings: dict[str, str],
+                               spark: SparkSession,
+                               year_month: datetime.date) -> bool:
     """
     This function checks if a full month of data is available in the silver 
     table for the given year_month.
 
     Args:
+        settings: A dictionary containing various settings needed for the 
+        gold layer update process, such as table names.
         spark: The SparkSession object.
-        silver_table_name: The name of the silver table.
         year_month: The year_month to check (should have day=1).
 
     Returns:
         True if a full month of data is available, False otherwise.
     """
-    # Calculate the number of days in the month
+
+    # Calculate the number of days in the month.
     days_in_month = calendar.monthrange(year_month.year, year_month.month)[1]
     
-    # Calculate the last day of the month
-    last_day_of_month = year_month.replace(day=days_in_month)
-    
-    # Get distinct event_dates in the silver table for this month
+    # Get distinct event_dates in the silver table for this month.
     available_dates = (
-        spark.table(silver_table_name)
+        spark.table(settings["silver_table_name"])
         .filter(F.trunc(F.col("event_date"), "month") == year_month)
         .select("event_date")
         .distinct()
         .collect()
     )
     
-    # Extract the dates into a set
+    # Extract the dates into a set.
     available_date_set = {row.event_date for row in available_dates}
     
-    # Check if we have all days of the month
+    # Check if we have all days of the month.
     expected_dates = {
         year_month + datetime.timedelta(days=i) 
         for i in range(days_in_month)
     }
-    
     missing_dates = expected_dates - available_date_set
-    
     if missing_dates:
-        print(f"Missing {len(missing_dates)} day(s) of data for {year_month.strftime('%Y-%m')}:")
-        print(f"  Missing dates: {sorted(missing_dates)[:5]}{'...' if len(missing_dates) > 5 else ''}")
-        return False
-    
-    print(f"Full month of data available for {year_month.strftime('%Y-%m')} ({days_in_month} days).")
+        return False    
     return True
 
 def validate_gold(df: DataFrame, 
@@ -134,8 +127,13 @@ def update_gold_layer(settings: dict[str, str],
     
     # Check if full month of data is available
     if require_full_month:
-        if not check_full_month_available(spark, settings["silver_table_name"], year_month):
-            print(f"Skipping gold ingestion: Full month of data not yet available for {year_month.strftime('%Y-%m')}.")
+        if not check_full_month_available(spark, 
+                                          settings["silver_table_name"], year_month):
+            print(
+                f"Skipping gold ingestion: "
+                f"Full month of data not yet available for "
+                f"{year_month.strftime('%Y-%m')}."
+            )
             return
     
     # Read silver events for the entire month (to recalculate monthly aggregates).
