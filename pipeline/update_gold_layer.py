@@ -8,45 +8,37 @@ import datetime
 from pyspark.sql import SparkSession
 from pyspark.sql import functions as F
 
-# 10: Demand, 13: Threaten, 14: Protest.
+# 10: Demand, 13: Threaten, 14: Protest
 UNREST_CAMEOEVENT_CODES = ["10", "13", "14"]
 
 def update_gold_layer(settings: dict[str, str], 
-                      download_date: datetime.date) -> None:
+                      input_file_date: datetime.date) -> None:
     """
-    This function builds the gold layer incrementally for a single 
-    download_date.
+    This function builds the gold layer incrementally for a single day.
 
     Args:
         settings: A dictionary containing various settings needed for the 
         gold layer update process, such as table names.
-        download_date: The date of the data being ingested (typically, 
+        input_file_date: The date of the data being ingested (typically, 
         yesterday's date).
 
     Returns:
         Nothing.
     """
+    print(f"Beginning gold ingestion for the following date: {input_file_date}.")
     spark = SparkSession.builder.getOrCreate()
-    
-    # Extract table names from settings
-    silver_table = settings.get("silver_table", "gdelt_project.silver.events")
-    gold_table = settings.get("gold_table", "gdelt_project.gold.suri")
-    
-    # Calculate year_month for partitioning
-    year_month = download_date.replace(day=1)
-    
-    # Read silver events for the specified download_date
-    df = spark.table(silver_table).filter(
-        F.col("event_date") == download_date
+        
+    # Read silver events for the specified input_file_date.
+    silver_df = spark.table(settings["silver_table_name"]).filter(
+        F.col("event_date") == input_file_date
     )
     
-    # Calculate SURI scores and aggregate metrics
-    suri_df = df.groupBy(
+    # Calculate SURI scores and aggregate metrics.
+    suri_df = silver_df.groupBy(
         F.trunc(F.col("event_date"), "month").alias("year_month"),
-        F.col("Actor1CountryCode").alias("source_actor"),
-        F.col("Actor2CountryCode").alias("target_actor")
+        F.col("Actor1CountryCode"),
+        F.col("Actor2CountryCode")
     ).agg(
-        # Total events
         F.count("*").alias("total_events"),
         
         # Geopolitical unrest score: count of unrest events (codes 10, 13, 14)
@@ -87,7 +79,7 @@ def update_gold_layer(settings: dict[str, str],
         F.avg("AvgTone").alias("avg_tone")
     )
     
-    # Calculate political involvement score and SURI score
+    # Calculate political involvement score and SURI score.
     suri_df = suri_df.withColumn(
         "pol_involve_score",
         (F.col("total_gov_gov_events") + 
@@ -104,8 +96,8 @@ def update_gold_layer(settings: dict[str, str],
     # Select columns in the correct order matching the gold table schema
     final_df = suri_df.select(
         "year_month",
-        "source_actor",
-        "target_actor",
+        "Actor1CountryCode",
+        "Actor2CountryCode",
         "total_events",
         "geo_unrest_score",
         "total_gov_gov_events",
@@ -122,10 +114,12 @@ def update_gold_layer(settings: dict[str, str],
     )
     
     # Write to gold table, overwriting only the partition for this year_month
-    final_df.write.mode("overwrite").format("delta").partitionBy(
-        "year_month"
-    ).option(
-        "replaceWhere", f"year_month = '{year_month}'"
-    ).saveAsTable(gold_table)
-    
-    print(f"Gold layer updated for {download_date} (partition: {year_month})")
+    (
+        final_df.write
+        .format("delta")
+        .mode("overwrite")
+        .option("partitionOverwriteMode", "dynamic")
+        .partitionBy("year_monnth")
+        .saveAsTable(settings["gold_table_name"])
+    )
+    print("Gold ingestion is complete!")

@@ -76,8 +76,7 @@ def validate_silver(df: DataFrame,
 def update_silver_layer(settings: dict[str, str], 
                         input_file_date: datetime.date) -> None:
     """
-    This function builds the silver layer incrementally for a single 
-    input_file_date.
+    This function builds the silver layer incrementally for a single day.
 
     Args:
         settings: A dictionary containing various settings needed for the 

@@ -147,8 +147,8 @@ in all caps. Derived columns are in snake_case.';
 CREATE TABLE IF NOT EXISTS gold.suri (
     year_month            DATE COMMENT 'The year and month of the \
     observation. The day is set to 1.',
-    source_actor          STRING COMMENT 'The actor performing the action.',
-    target_actor          STRING COMMENT 'The actor receiving the action.',
+    Actor1CountryCode          STRING,
+    Actor2CountryCode          STRING,
 
     total_events          INT COMMENT 'The total number of events performed \
     by the source actor on the target actor.',
@@ -187,7 +187,9 @@ CREATE TABLE IF NOT EXISTS gold.suri (
 USING DELTA
 PARTITIONED BY (year_month)
 COMMENT 'Monthly directional Social Unrest Risk Index (SURI) scores derived \
-from GDELT unrest events.';
+from GDELT unrest events. See the GDELT documentation for descriptions about \
+columns included in the input data. These columns are in all caps. Derived \
+columns are in snake_case.'';
 
 -- Volumes
 CREATE VOLUME IF NOT EXISTS bronze.staging_files;
