@@ -13,8 +13,9 @@ if __name__ == "__main__":
     # Get all the dates starting from January 1, 2026 until yesterday's date.
     start_date = datetime.date(2026, 1, 1)
     end_date = datetime.date.today() - datetime.timedelta(days=1)
-    date_range = (end_date - start_date).days + 1
+    date_range = (end_date - start_date).days
     all_input_file_dates = [start_date + datetime.timedelta(days=i) for i in range(date_range)]
+    print(all_input_file_dates)
     for input_file_date in all_input_file_dates:
 
         # Run the ingestion function to ingest raw GDELT events files for 

@@ -39,7 +39,8 @@ FOCUS_CAMEOCOUNTRY_CODES = [
 # These columns can't have missing values. They are essential for computing 
 # SURI scores. Actor1CountryCode is allowed to be missing because domestic
 # protestors and other non-state actors may not have a country code.
-ESSENTIAL_COLUMNS = ["event_date", "Actor2CountryCode", "EventRootCode"]
+ESSENTIAL_COLUMNS = ["event_date", "Actor1CountryCode",
+                     "Actor2CountryCode", "EventRootCode"]
 
 def validate_silver(df: DataFrame, 
                     input_file_date: datetime.date) -> None:
@@ -108,7 +109,10 @@ def update_silver_layer(settings: dict[str, str],
         # Filter the data to focus countries. Actor2CountryCode must be a focus 
         # country, but Actor1CountryCode doesn't have to be (can be missing), 
         # so non-state actors like domestic protestors are included.
-        .filter(col("Actor2CountryCode").isin(FOCUS_CAMEOCOUNTRY_CODES))
+        .filter(
+            col("Actor1CountryCode").isin(FOCUS_CAMEOCOUNTRY_CODES) &
+            col("Actor2CountryCode").isin(FOCUS_CAMEOCOUNTRY_CODES)
+        )
 
         # Drop rows missing essential columns for the SURI calculation.
         .dropna(subset=ESSENTIAL_COLUMNS)
