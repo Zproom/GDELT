@@ -17,7 +17,7 @@ EXPECTED_SILVER_COLUMNS = [
     "Actor2Type1Code", "Actor2Type2Code", "Actor2Type3Code",
     "EventCode", "EventBaseCode", "EventRootCode", "QuadClass",
     "GoldsteinScale", "NumMentions", "NumSources", "NumArticles", "AvgTone",
-    "download_date", "ingested_at"
+    "input_file_date", "ingested_at"
 ]
 
 # Only store data for the following countries, which dominate international 
@@ -36,16 +36,14 @@ FOCUS_CAMEOCOUNTRY_CODES = [
     "PAK", "EGY", "VEN", "ARG", "PRK", "TWN", "KOR"
 ]
 
-# 10: Demand, 13: Threaten, 14: Protest.
-UNREST_CAMEOEVENT_CODES = ["10", "13", "14"]
-
 # These columns can't have missing values. They are essential for computing 
 # SURI scores. Actor1CountryCode is allowed to be missing because domestic
 # protestors and other non-state actors may not have a country code.
-ESSENTIAL_COLUMNS = ["event_date", "Actor2CountryCode", "EventRootCode"]
+ESSENTIAL_COLUMNS = ["event_date", "Actor1CountryCode",
+                     "Actor2CountryCode", "EventRootCode"]
 
 def validate_silver(df: DataFrame, 
-                    download_date: datetime.date) -> None:
+                    input_file_date: datetime.date) -> None:
     """
     This function performs basic data quality checks on the silver DataFrame.
 
@@ -63,8 +61,8 @@ def validate_silver(df: DataFrame,
         )
     if df.count() == 0:
         raise ValueError("No rows ingested into Silver layer.")
-    if df.select("download_date").distinct().count() > 1:
-        raise ValueError("Silver ingestion contains multiple download dates.")
+    if df.select("input_file_date").distinct().count() > 1:
+        raise ValueError("Silver ingestion contains multiple input file dates.")
     dupes = (
         df.groupBy("GlobalEventID")
         .count()
@@ -76,27 +74,27 @@ def validate_silver(df: DataFrame,
         raise ValueError("Duplicate GlobalEventID values found in silver data.")
 
 def update_silver_layer(settings: dict[str, str], 
-                        download_date: datetime.date) -> None:
+                        input_file_date: datetime.date) -> None:
     """
     This function builds the silver layer incrementally for a single 
-    download_date.
+    input_file_date.
 
     Args:
         settings: A dictionary containing various settings needed for the 
         silver layer update process, such as table names.
-        download_date: The date of the data being ingested (typically, 
+        input_file_date: The date of the data being ingested (typically, 
         yesterday's date).
 
     Returns:
         Nothing.
     """
-    print(f"Beginning silver ingestion for the following date: {download_date}.")
+    print(f"Beginning silver ingestion for the following date: {input_file_date}.")
     spark = SparkSession.builder.getOrCreate()
 
     # Read only the relevant bronze partition.
     bronze_df = (
         spark.table(settings["bronze_table_name"])
-        .filter(col("download_date") == download_date)
+        .filter(col("input_file_date") == input_file_date)
     )
     silver_df = (
         bronze_df
@@ -108,13 +106,13 @@ def update_silver_layer(settings: dict[str, str],
         )
         .select(*EXPECTED_SILVER_COLUMNS)
 
-        # Filter the data to unrest-related events.
-        .filter(col("EventRootCode").isin(UNREST_CAMEOEVENT_CODES))
-
         # Filter the data to focus countries. Actor2CountryCode must be a focus 
         # country, but Actor1CountryCode doesn't have to be (can be missing), 
         # so non-state actors like domestic protestors are included.
-        .filter(col("Actor2CountryCode").isin(FOCUS_CAMEOCOUNTRY_CODES))
+        .filter(
+            col("Actor1CountryCode").isin(FOCUS_CAMEOCOUNTRY_CODES) &
+            col("Actor2CountryCode").isin(FOCUS_CAMEOCOUNTRY_CODES)
+        )
 
         # Drop rows missing essential columns for the SURI calculation.
         .dropna(subset=ESSENTIAL_COLUMNS)
@@ -124,7 +122,7 @@ def update_silver_layer(settings: dict[str, str],
     )
 
     # Perform data validation before writing to Delta table.
-    validate_silver(silver_df, download_date)
+    validate_silver(silver_df, input_file_date)
 
     # Write to Delta table.
     (

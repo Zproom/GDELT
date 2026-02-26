@@ -3,24 +3,29 @@
 
 
 import datetime
-from ingest_raw_data import *
-from update_silver_layer import *
+import calendar
+from ingest_raw_data import ingest_raw_data
+from update_silver_layer import update_silver_layer
+from update_gold_layer import update_gold_layer
+from constants import SETTINGS
 
 if __name__ == "__main__":
 
-    # Define the parameters for the pipeline, such as the table names.
-    settings = {
-        "bronze_table_name": "gdelt_project.bronze.events",
-        "silver_table_name": "gdelt_project.silver.events",
-        "gdelt_url_prefix": "http://data.gdeltproject.org/gdeltv2/"
-    }
-
     # Get yesterday's date to use as the ingestion date.
-    download_date = datetime.date.today() - datetime.timedelta(days=1)
+    input_file_date = datetime.date.today() - datetime.timedelta(days=1)
 
     # Run the ingestion function to ingest raw GDELT events files for 
     # yesterday's date.
-    ingest_raw_data(settings, download_date)
+    ingest_raw_data(SETTINGS, input_file_date)
 
     # Run silver ingestion.
-    update_silver_layer(settings, download_date)
+    update_silver_layer(SETTINGS, input_file_date)
+
+    # Update SURI scores. Only run if the input_file_date is the last day of 
+    # the month.
+    days_in_month = calendar.monthrange(input_file_date.year, 
+                                    input_file_date.month)[1]
+    if input_file_date.day == days_in_month:
+        update_gold_layer(SETTINGS, input_file_date)
+    else:
+        print(f"Skipping gold ingestion for {input_file_date} because it's not the first of the month.")

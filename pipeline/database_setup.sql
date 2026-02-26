@@ -88,16 +88,22 @@ CREATE TABLE IF NOT EXISTS bronze.events (
     SOURCEURL             STRING,
 
     -- Ingestion metadata
-    download_date         DATE,
-    ingested_at           TIMESTAMP
+    input_file_date       DATE COMMENT 'The date of the GDELT events file \
+    this observation came from. This date is derived from the filename of the \
+    ingested file.',
+    ingested_at           TIMESTAMP COMMENT 'The timestamp when the data was \
+    ingested into the database.'
 )
 USING DELTA
-PARTITIONED BY (download_date)
-COMMENT 'Raw GDELT events data';
+PARTITIONED BY (input_file_date)
+COMMENT 'Raw GDELT events data. See the GDELT documentation for descriptions \ 
+about columns included in the input data. These columns are in all caps. \
+Derived columns are in snake_case.';
 
 CREATE TABLE IF NOT EXISTS silver.events (
     GlobalEventID         BIGINT,
-    event_date            DATE,
+    event_date            DATE COMMENT 'The date of the event. This is \
+    derived from the Day column in the raw data.',
 
     Actor1Code            STRING,
     Actor1Name            STRING,
@@ -126,12 +132,64 @@ CREATE TABLE IF NOT EXISTS silver.events (
     NumArticles           INT,
     AvgTone               DOUBLE,
 
-    download_date         DATE,
-    ingested_at           TIMESTAMP
+    input_file_date       DATE COMMENT 'The date of the GDELT events file \
+    this observation came from. This date is derived from the filename of the \
+    ingested file.',
+    ingested_at           TIMESTAMP COMMENT 'The timestamp when the data was \
+    ingested into the database.'
 )
 USING DELTA
 PARTITIONED BY (event_date)
-COMMENT 'Cleaned and filtered GDELT events data';
+COMMENT 'Cleaned and filtered GDELT events data. See the GDELT documentation \
+for descriptions about columns included in the input data. These columns are \
+in all caps. Derived columns are in snake_case.';
+
+CREATE TABLE IF NOT EXISTS gold.suri (
+    year_month            DATE COMMENT 'The year and month of the \
+    observation. The day is set to 1.',
+    Actor1CountryCode          STRING,
+    Actor2CountryCode          STRING,
+
+    total_events          INT COMMENT 'The total number of events performed \
+    by the source actor on the target actor.',
+    geo_unrest_score      INT COMMENT 'The geopolitical unrest score, which \
+    is the total number of unrest-related events (CAMEO event codes 10, 13, \
+    and 14) performed by the source actor on the target actor.',
+    total_gov_gov_events  INT COMMENT 'The total number of events where the \
+    source Type1Code is "GOV" and the target Type1Code is "GOV".',
+    total_ngov_gov_events INT COMMENT 'The total number of events where the \
+    source Type1Code is not "GOV" and the target Type1Code is "GOV".',
+    total_gov_ngov_events INT COMMENT 'The total number of events where the \
+    source Type1Code is "GOV" and the target Type1Code is not "GOV".',
+    pol_involve_score     DOUBLE COMMENT 'The political involvement score, \
+    which measures how involved the government is in all events of a \
+    relationship. Is is the sum of total_gov_gov_events, \
+    total_ngov_gov_events, and total_gov_ngov_events, divided by \
+    total_events.',
+    suri_score            DOUBLE COMMENT 'The Social Unrest Risk Index (SURI) \
+    score, which is the product of the geo_unrest_score and the \
+    pol_involve_score.',
+    
+    avg_goldstein         DOUBLE COMMENT 'The average GoldsteinScale across \
+    all events performed by the source actor on the target actor.',
+    total_mentions        INT COMMENT 'The total number of mentions across \
+    all events performed by the source actor on the target actor.',
+    total_sources         INT COMMENT 'The total number of sources across \
+    all events performed by the source actor on the target actor.',
+    total_articles        INT COMMENT 'The total number of articles across \
+    all events performed by the source actor on the target actor.',
+    avg_tone              DOUBLE COMMENT 'The average AvgTone across all \
+    events performed by the source actor on the target actor.',
+
+    ingested_at           TIMESTAMP COMMENT 'The timestamp when the data was \
+    ingested into the database.'
+)
+USING DELTA
+PARTITIONED BY (year_month)
+COMMENT 'Monthly directional Social Unrest Risk Index (SURI) scores derived \
+from GDELT unrest events. See the GDELT documentation for descriptions about \
+columns included in the input data. These columns are in all caps. Derived \
+columns are in snake_case.';
 
 -- Volumes
 CREATE VOLUME IF NOT EXISTS bronze.staging_files;
