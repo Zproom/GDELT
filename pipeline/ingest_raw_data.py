@@ -16,7 +16,8 @@ from pyspark.sql import DataFrame
 from pyspark.sql.functions import (
     lit,
     current_timestamp,
-    col
+    col,
+    expr
 )
 from pyspark.sql.types import (
     LongType,
@@ -167,8 +168,6 @@ def ingest_raw_data(settings: dict[str, str],
                 successful_downloads.append((url, file_path))
     if not successful_downloads:
         raise RuntimeError("No GDELT files were successfully downloaded.")
-    if len(successful_downloads) != len(gdelt_urls):
-        raise RuntimeError("The expected number of GDELT files were not downloaded.")
     
     # Read all downloaded CSV files with Spark.
     file_paths = [path for _, path in successful_downloads]
@@ -181,29 +180,30 @@ def ingest_raw_data(settings: dict[str, str],
     )
     
     # Cast columns to correct types to match table schema.
+    # Using try_cast to handle malformed data gracefully (converts to NULL).
     df = (
         df
-        .withColumn("GlobalEventID", col("GlobalEventID").cast(LongType()))
-        .withColumn("Day", col("Day").cast(IntegerType()))
-        .withColumn("MonthYear", col("MonthYear").cast(IntegerType()))
-        .withColumn("Year", col("Year").cast(IntegerType()))
-        .withColumn("FractionDate", col("FractionDate").cast(DoubleType()))
-        .withColumn("IsRootEvent", col("IsRootEvent").cast(IntegerType()))
-        .withColumn("QuadClass", col("QuadClass").cast(IntegerType()))
-        .withColumn("GoldsteinScale", col("GoldsteinScale").cast(DoubleType()))
-        .withColumn("NumMentions", col("NumMentions").cast(IntegerType()))
-        .withColumn("NumSources", col("NumSources").cast(IntegerType()))
-        .withColumn("NumArticles", col("NumArticles").cast(IntegerType()))
-        .withColumn("AvgTone", col("AvgTone").cast(DoubleType()))
-        .withColumn("Actor1Geo_Type", col("Actor1Geo_Type").cast(IntegerType()))
-        .withColumn("Actor1Geo_Lat", col("Actor1Geo_Lat").cast(DoubleType()))
-        .withColumn("Actor1Geo_Long", col("Actor1Geo_Long").cast(DoubleType()))
-        .withColumn("Actor2Geo_Type", col("Actor2Geo_Type").cast(IntegerType()))
-        .withColumn("Actor2Geo_Lat", col("Actor2Geo_Lat").cast(DoubleType()))
-        .withColumn("Actor2Geo_Long", col("Actor2Geo_Long").cast(DoubleType()))
-        .withColumn("ActionGeo_Type", col("ActionGeo_Type").cast(IntegerType()))
-        .withColumn("ActionGeo_Lat", col("ActionGeo_Lat").cast(DoubleType()))
-        .withColumn("ActionGeo_Long", col("ActionGeo_Long").cast(DoubleType()))
+        .withColumn("GlobalEventID", expr("try_cast(GlobalEventID as BIGINT)"))
+        .withColumn("Day", expr("try_cast(Day as INT)"))
+        .withColumn("MonthYear", expr("try_cast(MonthYear as INT)"))
+        .withColumn("Year", expr("try_cast(Year as INT)"))
+        .withColumn("FractionDate", expr("try_cast(FractionDate as DOUBLE)"))
+        .withColumn("IsRootEvent", expr("try_cast(IsRootEvent as INT)"))
+        .withColumn("QuadClass", expr("try_cast(QuadClass as INT)"))
+        .withColumn("GoldsteinScale", expr("try_cast(GoldsteinScale as DOUBLE)"))
+        .withColumn("NumMentions", expr("try_cast(NumMentions as INT)"))
+        .withColumn("NumSources", expr("try_cast(NumSources as INT)"))
+        .withColumn("NumArticles", expr("try_cast(NumArticles as INT)"))
+        .withColumn("AvgTone", expr("try_cast(AvgTone as DOUBLE)"))
+        .withColumn("Actor1Geo_Type", expr("try_cast(Actor1Geo_Type as INT)"))
+        .withColumn("Actor1Geo_Lat", expr("try_cast(Actor1Geo_Lat as DOUBLE)"))
+        .withColumn("Actor1Geo_Long", expr("try_cast(Actor1Geo_Long as DOUBLE)"))
+        .withColumn("Actor2Geo_Type", expr("try_cast(Actor2Geo_Type as INT)"))
+        .withColumn("Actor2Geo_Lat", expr("try_cast(Actor2Geo_Lat as DOUBLE)"))
+        .withColumn("Actor2Geo_Long", expr("try_cast(Actor2Geo_Long as DOUBLE)"))
+        .withColumn("ActionGeo_Type", expr("try_cast(ActionGeo_Type as INT)"))
+        .withColumn("ActionGeo_Lat", expr("try_cast(ActionGeo_Lat as DOUBLE)"))
+        .withColumn("ActionGeo_Long", expr("try_cast(ActionGeo_Long as DOUBLE)"))
     )
     
     # Add metadata columns.
