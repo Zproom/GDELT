@@ -211,4 +211,4 @@ __marimo__/
 *.parquet
 
 # Make an exception for the data for the dashboard.
-!data/gdelt_project*.csv
+!dashboard/data/gdelt_project*.csv
