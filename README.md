@@ -122,11 +122,10 @@ Traditional database indexing is avoided in favor of Delta Lake partitioning and
 
 Potential extensions of the project include:
 
-- Backfilling the data lakehouse further (GDELT 2.0 event data begins in 2015)
+- Backfilling the data lakehouse further as costs permit (GDELT 2.0 event data begins in 2015)
 - Analyzing the relationship between SURI and economic measures such as trade flows and portfolio flows
 - Validation of SURI scores against external unrest or conflict indices
 - Alternative weighting schemes for unrest and political involvement
-- Regional or bloc-level aggregation (e.g., EU, ASEAN)
 - Automated scheduling and CI/CD for pipeline updates
 - Deployment of the dashboard to a hosted environment
-- Incorporation of additional GDELT-derived features such as sentiment volatility
+- Add more tests to ensure the pipeline and dashboard are working properly
