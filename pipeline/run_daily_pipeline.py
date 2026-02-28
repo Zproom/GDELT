@@ -28,4 +28,4 @@ if __name__ == "__main__":
     if input_file_date.day == days_in_month:
         update_gold_layer(SETTINGS, input_file_date)
     else:
-        print(f"Skipping gold ingestion for {input_file_date} because it's not the first of the month.")
+        print(f"Skipping gold ingestion for {input_file_date} because it's not the last day of the month.")
