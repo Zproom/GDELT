@@ -2,9 +2,9 @@
 
 ## Overview
 
-The goal of this project is to quantify the risk of social unrest between pairs of countries, or between actors within the same country, using a novel index called the Social Unrest Risk Index (SURI). The original research underlying this work was completed at the Federal Reserve and was later [presented](https://www.bancaditalia.it/pubblicazioni/altri-atti-convegni/2025-ifc/S2.1_1_Turbulent-times.pdf) at the 4th IFC Bank of International Settlements workshop on Data Science in Central Banking at Banca d’Italia.
+The goal of this project is to quantify the risk of social unrest between pairs of countries, or between actors within the same country, using a novel index called the Social Unrest Risk Index (SURI). The original research was completed at the Federal Reserve and later [presented](https://www.bancaditalia.it/pubblicazioni/altri-atti-convegni/2025-ifc/S2.1_1_Turbulent-times.pdf) at the 4th IFC-BIS workshop at the Bank of Italy.
 
-While an internal GDELT-based database already exists at the Federal Reserve, this repository was created to explore Databricks as an alternative platform for large-scale event data ingestion, transformation, and analytics. The project demonstrates that Databricks can meet the requirements of this use case while offering strong governance, scalability, and ease of development out of the box.
+This project uses event-level data from the GDELT Project (Global Database of Events, Language, and Tone), which monitors global news media in near real time and extracts structured information about political, social, and economic events using NLP techniques. While an internal GDELT-based database already exists at the Federal Reserve, this repository was created to explore Databricks as an alternative platform for large-scale event data ingestion, transformation, and analytics. The project demonstrates that Databricks can meet the requirements of this use case while offering strong governance, scalability, and ease of development out of the box.
 
 The core deliverables are a Databricks-based data lakehouse built using a medallion architecture (Bronze → Silver → Gold) and a Dockerized Streamlit dashboard that allows users to explore monthly SURI trends between selected country pairs.
 
@@ -26,6 +26,19 @@ docker run -p 8501:8501 suri_dashboard
 ```
 
 The dashboard will be available at: http://localhost:8501.
+
+## Technologies Used
+
+Data pipeline:
+- Databricks (Delta Lake + Unity Catalog)
+- Amazon S3 (object storage for data)
+- Python
+- Apache Spark (PySpark)
+
+Dashboard:
+- Python
+- Streamlit
+- Docker
 
 ## Architecture
 
@@ -56,9 +69,7 @@ The Gold-layer SURI table is periodically exported to .csv format for use by the
 
 ## Data Source
 
-This project uses event-level data from the GDELT Project (Global Database of Events, Language, and Tone), which monitors global news media in near real time and extracts structured information about political, social, and economic events using NLP techniques.
-
-Each GDELT record represents an action performed by Actor 1 on Actor 2, along with metadata such as event classification, tone, and media coverage intensity. Key fields used in this project include event dates, actor country codes and types, CAMEO event codes, and measures of tone, mentions, sources, and articles.
+Each GDELT event record represents an action performed by Actor 1 on Actor 2, along with metadata such as event classification, tone, and media coverage intensity. Key fields used in this project include event dates, actor country codes and types, CAMEO event codes, and measures of tone, mentions, sources, and articles. In the GDELT Project, CAMEO (Conflict and Mediation Event Observations) codes are a standardized taxonomy used to categorize "who did what to whom" in global news. They assign numerical values to specific political actions, ranging from a 01 (make a public statement) to a 20 (use unconventional mass violence). CAMEO codes allow researchers to quantitatively analyze diplomatic and conflict-related behavior.
 
 The pipeline focuses specifically on unrest-related events, identified using CAMEO root event codes associated with demands, threats, and protests. These events are ingested into Databricks, cleaned and filtered, and then aggregated into monthly metrics used to compute SURI scores.
 
