@@ -1,4 +1,4 @@
-# This is a Dockerfile for the streamlit dashboard application. It sets up a 
+# This is a Dockerfile for the Streamlit dashboard application. It sets up a 
 # Python environment, installs dependencies, and runs the app.
 
 
