@@ -12,7 +12,7 @@ RUN mkdir /app/data
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Copy application code and data
+# Copy application code and data.
 COPY app.py .
 COPY constants.py .
 COPY data/gdelt_project.gold.suri_20260226.csv data/
@@ -20,5 +20,5 @@ COPY data/gdelt_project.gold.suri_20260226.csv data/
 # Streamlit runs on port 8501 by default.
 EXPOSE 8501
 
-# Run the Streamlit app
+# Run the Streamlit app.
 CMD ["streamlit", "run", "app.py"]
