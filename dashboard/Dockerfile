@@ -15,7 +15,7 @@ RUN pip install --no-cache-dir -r requirements.txt
 # Copy application code and data.
 COPY app.py .
 COPY constants.py .
-COPY data/gdelt_project.gold.suri_20260226.csv data/
+COPY data/*.csv data/
 
 # Streamlit runs on port 8501 by default.
 EXPOSE 8501

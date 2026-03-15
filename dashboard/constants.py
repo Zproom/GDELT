@@ -3,7 +3,7 @@
 
 from pathlib import Path
 
-DATA_PATH = Path("data/gdelt_project.gold.suri_20260226.csv")
+DATA_PATH = Path("data/gdelt_project.gold.suri_20260314.csv")
 
 # Minimal CAMEO / ISO-style mapping (extend as needed)
 COUNTRY_MAP = {
